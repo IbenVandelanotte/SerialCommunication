@@ -16,11 +16,19 @@ namespace SerialCommunication
     public partial class Form1 : Form
     {
         private SerialPort serialPortArduino = new SerialPort() { ReadTimeout = 1000, WriteTimeout = 1000 };
+        private System.Windows.Forms.Timer timerOefening3;
 
         public Form1()
         {
             InitializeComponent();
             this.trackBarPWM9.Scroll += new System.EventHandler(this.trackBarPWM9_Scroll);
+
+            // timer for Oefening3: 1000 ms, initially disabled
+            timerOefening3 = new System.Windows.Forms.Timer() { Interval = 1000, Enabled = false };
+            timerOefening3.Tick += new System.EventHandler(this.timerOefening3_Tick);
+
+            // handle tab selection changes to enable/disable the timer
+            this.tabControl.SelectedIndexChanged += new System.EventHandler(this.tabControl_SelectedIndexChanged);
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -231,6 +239,72 @@ namespace SerialCommunication
             catch (Exception ex)
             {
                 labelStatus.Text = "Fout bij verzenden: " + ex.Message;
+            }
+        }
+
+        private void tabControl_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                if (tabControl.SelectedTab == tabPageOefening3)
+                    timerOefening3.Enabled = true;
+                else
+                    timerOefening3.Enabled = false;
+            }
+            catch (Exception ex)
+            {
+                try { labelStatus.Text = "Fout in tabcontrol handler: " + ex.Message; } catch { }
+            }
+        }
+
+        private void timerOefening3_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!serialPortArduino.IsOpen) return;
+
+                // remove previous Arduino answers
+                try { serialPortArduino.ReadExisting(); } catch { }
+
+                // digital5
+                try
+                {
+                    serialPortArduino.WriteLine("get d5");
+                    string response = serialPortArduino.ReadLine();
+                    response = (response ?? string.Empty).Trim();
+                    if (response.Contains(":")) response = response.Split(':').Last().Trim();
+                    else if (response.Contains(" ")) response = response.Split(' ').Last().Trim();
+                    radioButtonDigital5.Checked = (response == "1");
+                }
+                catch { /* ignore individual read errors */ }
+
+                // digital6
+                try
+                {
+                    serialPortArduino.WriteLine("get d6");
+                    string response = serialPortArduino.ReadLine();
+                    response = (response ?? string.Empty).Trim();
+                    if (response.Contains(":")) response = response.Split(':').Last().Trim();
+                    else if (response.Contains(" ")) response = response.Split(' ').Last().Trim();
+                    radioButtonDigital6.Checked = (response == "1");
+                }
+                catch { }
+
+                // digital7
+                try
+                {
+                    serialPortArduino.WriteLine("get d7");
+                    string response = serialPortArduino.ReadLine();
+                    response = (response ?? string.Empty).Trim();
+                    if (response.Contains(":")) response = response.Split(':').Last().Trim();
+                    else if (response.Contains(" ")) response = response.Split(' ').Last().Trim();
+                    radioButtonDigital7.Checked = (response == "1");
+                }
+                catch { }
+            }
+            catch (Exception ex)
+            {
+                try { labelStatus.Text = "Fout timerOefening3: " + ex.Message; } catch { }
             }
         }
 
