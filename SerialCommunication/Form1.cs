@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Drawing;
 using System.IO.Ports;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -54,6 +55,8 @@ namespace SerialCommunication
             }
             catch (Exception)
             { }
+            // Disable digital checkboxes until connected
+            checkBoxDigital2.Enabled = checkBoxDigital3.Enabled = checkBoxDigital4.Enabled = false;
         }
 
         private void cboPoort_DropDown(object sender, EventArgs e)
@@ -124,6 +127,7 @@ namespace SerialCommunication
                         radioButtonVerbonden.Checked = true;
                         buttonConnect.Text = "Disconnect";
                         labelStatus.Text = $"Verbonden: {serialPortArduino.PortName}";
+                        checkBoxDigital2.Enabled = checkBoxDigital3.Enabled = checkBoxDigital4.Enabled = true;
                     }
                     else
                     {
@@ -135,11 +139,25 @@ namespace SerialCommunication
                 {
                     labelStatus.Text = "Timeout: geen antwoord op ping.";
                     if (serialPortArduino.IsOpen) serialPortArduino.Close();
+                    checkBoxDigital2.Enabled = checkBoxDigital3.Enabled = checkBoxDigital4.Enabled = false;
+                }
+                catch (UnauthorizedAccessException uaex)
+                {
+                    labelStatus.Text = "Geen toegang tot poort: " + uaex.Message + " — sluit andere applicaties die de poort gebruiken of kies een andere poort.";
+                    if (serialPortArduino.IsOpen) serialPortArduino.Close();
+                    checkBoxDigital2.Enabled = checkBoxDigital3.Enabled = checkBoxDigital4.Enabled = false;
+                }
+                catch (IOException ioex)
+                {
+                    labelStatus.Text = "IO-fout bij communicatie: " + ioex.Message + " — controleer kabel/poort en probeer opnieuw.";
+                    if (serialPortArduino.IsOpen) serialPortArduino.Close();
+                    checkBoxDigital2.Enabled = checkBoxDigital3.Enabled = checkBoxDigital4.Enabled = false;
                 }
                 catch (Exception ex)
                 {
                     labelStatus.Text = "Fout bij verbinden: " + ex.Message;
                     if (serialPortArduino.IsOpen) serialPortArduino.Close();
+                    checkBoxDigital2.Enabled = checkBoxDigital3.Enabled = checkBoxDigital4.Enabled = false;
                 }
             }
             else
@@ -153,6 +171,7 @@ namespace SerialCommunication
                 radioButtonVerbonden.Checked = false;
                 buttonConnect.Text = "Connect";
                 labelStatus.Text = "Niet verbonden";
+                checkBoxDigital2.Enabled = checkBoxDigital3.Enabled = checkBoxDigital4.Enabled = false;
             }
         }
 
