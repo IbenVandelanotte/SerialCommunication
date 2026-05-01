@@ -363,6 +363,6 @@ namespace SerialCommunication
             {
                 labelStatus.Text = "Fout bij verzenden: " + ex.Message;
             }
-        }
+        }  
     }
 }
