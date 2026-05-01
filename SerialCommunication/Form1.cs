@@ -17,6 +17,7 @@ namespace SerialCommunication
     {
         private SerialPort serialPortArduino = new SerialPort() { ReadTimeout = 1000, WriteTimeout = 1000 };
         private System.Windows.Forms.Timer timerOefening3;
+        private System.Windows.Forms.Timer timerOefening4;
 
         public Form1()
         {
@@ -27,7 +28,11 @@ namespace SerialCommunication
             timerOefening3 = new System.Windows.Forms.Timer() { Interval = 1000, Enabled = false };
             timerOefening3.Tick += new System.EventHandler(this.timerOefening3_Tick);
 
-            // handle tab selection changes to enable/disable the timer
+            // timer for Oefening4: 1000 ms, initially disabled
+            timerOefening4 = new System.Windows.Forms.Timer() { Interval = 1000, Enabled = false };
+            timerOefening4.Tick += new System.EventHandler(this.timerOefening4_Tick);
+
+            // handle tab selection changes to enable/disable the timers
             this.tabControl.SelectedIndexChanged += new System.EventHandler(this.tabControl_SelectedIndexChanged);
         }
 
@@ -250,6 +255,11 @@ namespace SerialCommunication
                     timerOefening3.Enabled = true;
                 else
                     timerOefening3.Enabled = false;
+
+                if (tabControl.SelectedTab == tabPageOefening4)
+                    timerOefening4.Enabled = true;
+                else
+                    timerOefening4.Enabled = false;
             }
             catch (Exception ex)
             {
@@ -305,6 +315,33 @@ namespace SerialCommunication
             catch (Exception ex)
             {
                 try { labelStatus.Text = "Fout timerOefening3: " + ex.Message; } catch { }
+            }
+        }
+
+        private void timerOefening4_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!serialPortArduino.IsOpen) return;
+
+                // remove previous Arduino answers
+                try { serialPortArduino.ReadExisting(); } catch { }
+
+                // analog0
+                try
+                {
+                    serialPortArduino.WriteLine("get a0");
+                    string response = serialPortArduino.ReadLine();
+                    response = (response ?? string.Empty).Trim();
+                    if (response.Contains(":")) response = response.Split(':').Last().Trim();
+                    else if (response.Contains(" ")) response = response.Split(' ').Last().Trim();
+                    labelAnalog0.Text = response;
+                }
+                catch { /* ignore individual read errors */ }
+            }
+            catch (Exception ex)
+            {
+                try { labelStatus.Text = "Fout timerOefening4: " + ex.Message; } catch { }
             }
         }
 
