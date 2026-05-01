@@ -14,6 +14,8 @@ namespace SerialCommunication
 {
     public partial class Form1 : Form
     {
+        private SerialPort serialPortArduino = new SerialPort() { ReadTimeout = 1000, WriteTimeout = 1000 };
+
         public Form1()
         {
             InitializeComponent();
@@ -52,9 +54,86 @@ namespace SerialCommunication
             }
         }
 
-        private void buttonConnect_Click(object sender, EventArgs e)
+        private async void buttonConnect_Click(object sender, EventArgs e)
         {
-            // abc def ghi jkl
+            if (!serialPortArduino.IsOpen)
+            {
+                try
+                {
+                    string portName = comboBoxPoort.SelectedItem?.ToString() ?? comboBoxPoort.Text;
+                    if (string.IsNullOrWhiteSpace(portName))
+                    {
+                        labelStatus.Text = "Selecteer een poort.";
+                        return;
+                    }
+                    serialPortArduino.PortName = portName;
+
+                    int baud;
+                    if (!int.TryParse(comboBoxBaudrate.SelectedItem?.ToString() ?? comboBoxBaudrate.Text, out baud))
+                        baud = 115200;
+                    serialPortArduino.BaudRate = baud;
+
+                    serialPortArduino.DataBits = (int)numericUpDownDatabits.Value;
+
+                    if (radioButtonParityNone.Checked) serialPortArduino.Parity = Parity.None;
+                    else if (radioButtonParityEven.Checked) serialPortArduino.Parity = Parity.Even;
+                    else if (radioButtonParityOdd.Checked) serialPortArduino.Parity = Parity.Odd;
+                    else if (radioButtonParityMark.Checked) serialPortArduino.Parity = Parity.Mark;
+                    else if (radioButtonParitySpace.Checked) serialPortArduino.Parity = Parity.Space;
+
+                    if (radioButtonStopbitsOne.Checked) serialPortArduino.StopBits = StopBits.One;
+                    else if (radioButtonStopbitsOnePointFive.Checked) serialPortArduino.StopBits = StopBits.OnePointFive;
+                    else if (radioButtonStopbitsTwo.Checked) serialPortArduino.StopBits = StopBits.Two;
+                    else serialPortArduino.StopBits = StopBits.None;
+
+                    if (radioButtonHandshakeNone.Checked) serialPortArduino.Handshake = Handshake.None;
+                    else if (radioButtonHandshakeRTS.Checked) serialPortArduino.Handshake = Handshake.RequestToSend;
+                    else if (radioButtonHandshakeRTSXonXoff.Checked) serialPortArduino.Handshake = Handshake.RequestToSendXOnXOff;
+                    else if (radioButtonHandshakeXonXoff.Checked) serialPortArduino.Handshake = Handshake.XOnXOff;
+
+                    serialPortArduino.RtsEnable = checkBoxRtsEnable.Checked;
+                    serialPortArduino.DtrEnable = checkBoxDtrEnable.Checked;
+
+                    serialPortArduino.Open();
+
+                    // send ping and wait for pong (use Task.Run to avoid blocking UI thread)
+                    serialPortArduino.WriteLine("ping");
+                    string response = await Task.Run(() => serialPortArduino.ReadLine());
+                    if (response != null && response.Trim().Equals("pong", StringComparison.OrdinalIgnoreCase))
+                    {
+                        radioButtonVerbonden.Checked = true;
+                        buttonConnect.Text = "Disconnect";
+                        labelStatus.Text = $"Verbonden: {serialPortArduino.PortName}";
+                    }
+                    else
+                    {
+                        labelStatus.Text = $"Onverwacht antwoord: {response}";
+                        if (serialPortArduino.IsOpen) serialPortArduino.Close();
+                    }
+                }
+                catch (TimeoutException)
+                {
+                    labelStatus.Text = "Timeout: geen antwoord op ping.";
+                    if (serialPortArduino.IsOpen) serialPortArduino.Close();
+                }
+                catch (Exception ex)
+                {
+                    labelStatus.Text = "Fout bij verbinden: " + ex.Message;
+                    if (serialPortArduino.IsOpen) serialPortArduino.Close();
+                }
+            }
+            else
+            {
+                try
+                {
+                    serialPortArduino.Close();
+                }
+                catch { }
+
+                radioButtonVerbonden.Checked = false;
+                buttonConnect.Text = "Connect";
+                labelStatus.Text = "Niet verbonden";
+            }
         }
     }
 }
