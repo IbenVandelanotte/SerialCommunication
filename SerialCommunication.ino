@@ -8,6 +8,15 @@
 int numberOfPings;
 SerialCommand sCmd(SerialPort);
 
+// Thermostat: potentiometer on A0 (desired temp), LM35 on A1 (current temp), LED on D2
+const int potPin = A0;
+const int lm35Pin = A1;
+const int ledPin = 2;
+unsigned long lastStatusMillis = 0;
+const unsigned long statusInterval = 1000; // ms
+float desiredTemp = 20.0;
+float currentTemp = 20.0;
+
 void setup() 
 {
   digitalWrite(13, LOW);
@@ -31,9 +40,39 @@ void setup()
   //SerialPort.println(F("ready"));
 }
 
-void loop() 
+void loop()
 {
   sCmd.readSerial();
+
+  // periodic thermostat update and serial status (every statusInterval ms)
+  if (millis() - lastStatusMillis >= statusInterval)
+  {
+    lastStatusMillis = millis();
+    updateThermostat();
+  }
+}
+
+void updateThermostat()
+{
+  int potVal = analogReadDelay(potPin, 50000);
+  desiredTemp = (potVal * (40.0 / 1023.0)) + 5.0;
+
+  int lmVal = analogReadDelay(lm35Pin, 50000);
+  // LM35: 10 mV per degree C, ADC step = 5V/1023 (~4.8876 mV)
+  currentTemp = lmVal * (5.0 / 1023.0) / 0.01; // degrees C
+
+  // control LED: ON when current temperature is below desired temperature
+  if (currentTemp < desiredTemp) digitalWrite(ledPin, HIGH);
+  else digitalWrite(ledPin, LOW);
+
+  // print values with 1 decimal and units
+  SerialPort.print(F("desired: "));
+  SerialPort.print(desiredTemp, 1);
+  SerialPort.println(F(" C"));
+
+  SerialPort.print(F("current: "));
+  SerialPort.print(currentTemp, 1);
+  SerialPort.println(F(" C"));
 }
 
 void onUnknownCommand(char* cmd)
