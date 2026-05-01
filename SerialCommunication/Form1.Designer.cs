@@ -540,7 +540,7 @@
             // 
             // pictureBox1
             // 
-            this.pictureBox1.Image = global::SerialCommunication.Properties.Resources.digital_out;
+            this.pictureBox1.Image = null; // resource may be unavailable at runtime; set in Form1_Load with fallback
             this.pictureBox1.Location = new System.Drawing.Point(255, 26);
             this.pictureBox1.Margin = new System.Windows.Forms.Padding(4, 5, 4, 5);
             this.pictureBox1.Name = "pictureBox1";

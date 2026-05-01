@@ -25,6 +25,26 @@ namespace SerialCommunication
         {
             try
             {
+                // Try to set pictureBox1 image from resources; if unavailable, hide the picture box to avoid exceptions.
+                try
+                {
+                    var img = SerialCommunication.Properties.Resources.digital_out;
+                    if (img != null)
+                    {
+                        pictureBox1.Image = img;
+                        pictureBox1.Visible = true;
+                    }
+                    else
+                    {
+                        pictureBox1.Visible = false;
+                    }
+                }
+                catch (Exception)
+                {
+                    pictureBox1.Visible = false;
+                    try { labelStatus.Text = "Image resource niet beschikbaar"; } catch { }
+                }
+
                 string[] portNames = SerialPort.GetPortNames().Distinct().ToArray();
                 comboBoxPoort.Items.Clear();
                 comboBoxPoort.Items.AddRange(portNames);
