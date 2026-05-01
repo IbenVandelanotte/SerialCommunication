@@ -132,7 +132,9 @@
             this.buttonConnect.Size = new System.Drawing.Size(112, 35);
             this.buttonConnect.TabIndex = 7;
             this.buttonConnect.Text = "Connect";
-            this.buttonConnect.UseVisualStyleBackColor = true;
+            this.buttonConnect.BackColor = System.Drawing.Color.Blue;
+            this.buttonConnect.ForeColor = System.Drawing.Color.White;
+            this.buttonConnect.UseVisualStyleBackColor = false;
             this.buttonConnect.Click += new System.EventHandler(this.buttonConnect_Click);
             // 
             // labelPoort
