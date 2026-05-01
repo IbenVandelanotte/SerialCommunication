@@ -155,5 +155,63 @@ namespace SerialCommunication
                 labelStatus.Text = "Niet verbonden";
             }
         }
+
+        // CheckedChanged handlers for Digital checkboxes
+        private void checkBoxDigital2_CheckedChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!serialPortArduino.IsOpen)
+                {
+                    labelStatus.Text = "Niet verbonden";
+                    return;
+                }
+                string cmd = checkBoxDigital2.Checked ? "set d2 high" : "set d2 low";
+                serialPortArduino.WriteLine(cmd);
+                labelStatus.Text = "Verstuurd: " + cmd;
+            }
+            catch (Exception ex)
+            {
+                labelStatus.Text = "Fout bij verzenden: " + ex.Message;
+            }
+        }
+
+        private void checkBoxDigital3_CheckedChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!serialPortArduino.IsOpen)
+                {
+                    labelStatus.Text = "Niet verbonden";
+                    return;
+                }
+                string cmd = checkBoxDigital3.Checked ? "set d3 high" : "set d3 low";
+                serialPortArduino.WriteLine(cmd);
+                labelStatus.Text = "Verstuurd: " + cmd;
+            }
+            catch (Exception ex)
+            {
+                labelStatus.Text = "Fout bij verzenden: " + ex.Message;
+            }
+        }
+
+        private void checkBoxDigital4_CheckedChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!serialPortArduino.IsOpen)
+                {
+                    labelStatus.Text = "Niet verbonden";
+                    return;
+                }
+                string cmd = checkBoxDigital4.Checked ? "set d4 high" : "set d4 low";
+                serialPortArduino.WriteLine(cmd);
+                labelStatus.Text = "Verstuurd: " + cmd;
+            }
+            catch (Exception ex)
+            {
+                labelStatus.Text = "Fout bij verzenden: " + ex.Message;
+            }
+        }
     }
 }
