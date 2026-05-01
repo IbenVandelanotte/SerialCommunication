@@ -20,6 +20,7 @@ namespace SerialCommunication
         public Form1()
         {
             InitializeComponent();
+            this.trackBarPWM9.Scroll += new System.EventHandler(this.trackBarPWM9_Scroll);
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -224,6 +225,26 @@ namespace SerialCommunication
                     return;
                 }
                 string cmd = checkBoxDigital4.Checked ? "set d4 high" : "set d4 low";
+                serialPortArduino.WriteLine(cmd);
+                labelStatus.Text = "Verstuurd: " + cmd;
+            }
+            catch (Exception ex)
+            {
+                labelStatus.Text = "Fout bij verzenden: " + ex.Message;
+            }
+        }
+
+        private void trackBarPWM9_Scroll(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!serialPortArduino.IsOpen)
+                {
+                    labelStatus.Text = "Niet verbonden";
+                    return;
+                }
+
+                string cmd = "set pwm9 " + trackBarPWM9.Value.ToString();
                 serialPortArduino.WriteLine(cmd);
                 labelStatus.Text = "Verstuurd: " + cmd;
             }
