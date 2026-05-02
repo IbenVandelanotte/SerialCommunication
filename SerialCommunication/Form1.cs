@@ -18,6 +18,8 @@ namespace SerialCommunication
         private SerialPort serialPortArduino = new SerialPort() { ReadTimeout = 1000, WriteTimeout = 1000 };
         private System.Windows.Forms.Timer timerOefening3;
         private System.Windows.Forms.Timer timerOefening4;
+        private System.Windows.Forms.Timer timerOefening5;
+        private bool suppressDigital2Events = false;
 
         public Form1()
         {
@@ -31,6 +33,10 @@ namespace SerialCommunication
             // timer for Oefening4: 1000 ms, initially disabled
             timerOefening4 = new System.Windows.Forms.Timer() { Interval = 1000, Enabled = false };
             timerOefening4.Tick += new System.EventHandler(this.timerOefening4_Tick);
+
+            // timer for Oefening5: 1000 ms, initially disabled
+            timerOefening5 = new System.Windows.Forms.Timer() { Interval = 1000, Enabled = false };
+            timerOefening5.Tick += new System.EventHandler(this.timerOefening5_Tick);
 
             // handle tab selection changes to enable/disable the timers
             this.tabControl.SelectedIndexChanged += new System.EventHandler(this.tabControl_SelectedIndexChanged);
@@ -194,6 +200,7 @@ namespace SerialCommunication
         {
             try
             {
+                if (suppressDigital2Events) return;
                 if (!serialPortArduino.IsOpen)
                 {
                     labelStatus.Text = "Niet verbonden";
@@ -260,6 +267,11 @@ namespace SerialCommunication
                     timerOefening4.Enabled = true;
                 else
                     timerOefening4.Enabled = false;
+
+                if (tabControl.SelectedTab == tabPageOefening5)
+                    timerOefening5.Enabled = true;
+                else
+                    timerOefening5.Enabled = false;
             }
             catch (Exception ex)
             {
@@ -324,10 +336,32 @@ namespace SerialCommunication
             {
                 if (!serialPortArduino.IsOpen) return;
 
-                // remove previous Arduino answers
-                try { serialPortArduino.ReadExisting(); } catch { }
+                // read and parse any incoming lines (e.g., firmware periodic status)
+                try
+                {
+                    string existing = serialPortArduino.ReadExisting();
+                    if (!string.IsNullOrEmpty(existing))
+                    {
+                        var lines = existing.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                        foreach (var line in lines)
+                        {
+                            string l = line.Trim();
+                            if (l.StartsWith("desired:"))
+                            {
+                                string v = l.Substring("desired:".Length).Trim();
+                                try { labelGewensteTemp.Text = v; } catch { }
+                            }
+                            else if (l.StartsWith("current:"))
+                            {
+                                string v = l.Substring("current:".Length).Trim();
+                                try { labelHuidigeTemp.Text = v; } catch { }
+                            }
+                        }
+                    }
+                }
+                catch { }
 
-                // analog0
+                // also request raw analog0 value (existing behavior)
                 try
                 {
                     serialPortArduino.WriteLine("get a0");
@@ -338,10 +372,112 @@ namespace SerialCommunication
                     labelAnalog0.Text = response;
                 }
                 catch { /* ignore individual read errors */ }
+
+                // query LED (d2) status and update checkbox without triggering change handler
+                try
+                {
+                    serialPortArduino.WriteLine("get d2");
+                    string response = serialPortArduino.ReadLine();
+                    response = (response ?? string.Empty).Trim();
+                    if (response.Contains(":")) response = response.Split(':').Last().Trim();
+                    else if (response.Contains(" ")) response = response.Split(' ').Last().Trim();
+                    suppressDigital2Events = true;
+                    checkBoxDigital2.Checked = (response == "1");
+                    suppressDigital2Events = false;
+                }
+                catch { }
             }
             catch (Exception ex)
             {
                 try { labelStatus.Text = "Fout timerOefening4: " + ex.Message; } catch { }
+            }
+        }
+
+        private void timerOefening5_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                if (!serialPortArduino.IsOpen) { labelStatus.Text = "Niet verbonden"; return; }
+
+                // clear any previous buffered data
+                try { serialPortArduino.ReadExisting(); } catch { }
+
+                int raw0 = -1;
+                int raw1 = -1;
+
+                try
+                {
+                    serialPortArduino.WriteLine("get a0");
+                    string response0 = serialPortArduino.ReadLine();
+                    response0 = (response0 ?? string.Empty).Trim();
+                    if (response0.Contains(":")) response0 = response0.Split(':').Last().Trim();
+                    else if (response0.Contains(" ")) response0 = response0.Split(' ').Last().Trim();
+                    int.TryParse(response0, out raw0);
+                }
+                catch (TimeoutException) { /* ignore individual timeout */ }
+
+                try
+                {
+                    serialPortArduino.WriteLine("get a1");
+                    string response1 = serialPortArduino.ReadLine();
+                    response1 = (response1 ?? string.Empty).Trim();
+                    if (response1.Contains(":")) response1 = response1.Split(':').Last().Trim();
+                    else if (response1.Contains(" ")) response1 = response1.Split(' ').Last().Trim();
+                    int.TryParse(response1, out raw1);
+                }
+                catch (TimeoutException) { /* ignore */ }
+
+                double slopeDesired = 40.0 / 1023.0; // 5..45°C
+                double offsetDesired = 5.0;
+                double slopeCurrent = 500.0 / 1023.0; // 0..500°C
+
+                bool haveDesired = raw0 >= 0;
+                bool haveCurrent = raw1 >= 0;
+
+                double desired = 0.0;
+                double current = 0.0;
+
+                if (haveDesired)
+                {
+                    desired = raw0 * slopeDesired + offsetDesired;
+                    try { labelGewensteTemp.Text = desired.ToString("F1") + " °C"; } catch { }
+                }
+
+                if (haveCurrent)
+                {
+                    current = raw1 * slopeCurrent;
+                    try { labelHuidigeTemp.Text = current.ToString("F1") + " °C"; } catch { }
+                }
+
+                if (haveDesired && haveCurrent)
+                {
+                    bool shouldBeOn = current < desired;
+                    try
+                    {
+                        // only send command if state differs to reduce serial traffic
+                        if (checkBoxDigital2.Checked != shouldBeOn)
+                        {
+                            string cmd = shouldBeOn ? "set d2 high" : "set d2 low";
+                            serialPortArduino.WriteLine(cmd);
+                        }
+                        suppressDigital2Events = true;
+                        checkBoxDigital2.Checked = shouldBeOn;
+                        suppressDigital2Events = false;
+                    }
+                    catch { }
+                }
+            }
+            catch (TimeoutException)
+            {
+                try { labelStatus.Text = "Timeout tijdens uitlezen."; } catch { }
+            }
+            catch (System.IO.IOException ioex)
+            {
+                try { labelStatus.Text = "IO-fout: " + ioex.Message; } catch { }
+            }
+            catch (Exception ex)
+            {
+                try { labelStatus.Text = "Fout timerOefening5: " + ex.Message; } catch { }
             }
         }
 
